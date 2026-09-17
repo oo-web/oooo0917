@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>60秒極限節奏挑戰 Rhythm Dash</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #090d16;
+            color: #f8fafc;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow-x: hidden;
+        }
+
+        .font-digits {
+            font-family: 'Orbitron', monospace;
+        }
+
+        /* Glassmorphism Styles */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .glass-modal {
+            background: rgba(9, 13, 22, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* Canvas Glowing Frame */
+        canvas {
+            touch-action: none;
+            display: block;
+        }
+
+        .lane-key {
+            transition: all 0.05s ease-out;
+        }
+
+        .lane-key.active {
+            transform: translateY(4px);
+            filter: brightness(1.4);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.8);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.4);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between items-center p-2 sm:p-5 select-none bg-slate-950 text-slate-100">
+
+    <!-- Top Header & Game Status Bar -->
+    <header class="w-full max-w-2xl flex flex-col sm:flex-row justify-between items-center mb-3 gap-2">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-purple-500 to-pink-500 flex items-center justify-center text-white text-xl shadow-lg shadow-purple-500/30">
+                <i class="fa-solid fa-music"></i>
+            </div>
+            <div>
+                <h1 class="text-xl sm:text-2xl font-black tracking-wider bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-pink-500 bg-clip-text text-transparent">
+                    RHYTHM DASH 60S
+                </h1>
+                <p class="text-xs text-slate-400">60秒極限節奏下落點擊挑戰</p>
+            </div>
+        </div>
+
+        <!-- Audio & Record Controls -->
+        <div class="flex items-center gap-2">
+            <button id="soundToggleBtn" class="px-3 py-1.5 rounded-xl glass-panel hover:bg-slate-800 text-slate-300 transition flex items-center gap-2 text-xs">
+                <i id="soundIcon" class="fa-solid fa-volume-high text-cyan-400"></i>
+                <span id="soundLabel">音樂：開啟</span>
+            </button>
+            <div class="px-3 py-1.5 rounded-xl glass-panel flex items-center gap-2 border border-amber-500/30 text-amber-300">
+                <i class="fa-solid fa-trophy text-amber-400 text-xs"></i>
+                <span class="text-xs text-slate-400">最高分:</span>
+                <span id="highScoreText" class="font-digits font-bold text-sm text-amber-400">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Display Area -->
+    <main class="w-full max-w-2xl flex-1 flex flex-col items-center justify-center relative">
+        
+        <!-- Game HUD Panel -->
+        <div class="w-full glass-panel rounded-xl p-3 mb-3 grid grid-cols-4 gap-2 text-center shadow-xl border border-slate-800">
+            <!-- Timer -->
+            <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex flex-col justify-center">
+                <span class="text-[10px] sm:text-xs text-slate-400 mb-0.5 flex items-center justify-center gap-1">
+                    <i class="fa-regular fa-clock text-cyan-400"></i> 時間
+                </span>
+                <span id="timerText" class="font-digits font-black text-lg sm:text-2xl text-cyan-400">60.00</span>
+            </div>
+
+            <!-- Current Score -->
+            <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex flex-col justify-center">
+                <span class="text-[10px] sm:text-xs text-slate-400 mb-0.5 flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-star text-amber-400"></i> 得分
+                </span>
+                <span id="scoreText" class="font-digits font-black text-lg sm:text-2xl text-emerald-400">0</span>
+            </div>
+
+            <!-- Current Combo -->
+            <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex flex-col justify-center">
+                <span class="text-[10px] sm:text-xs text-slate-400 mb-0.5 flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-bolt text-fuchsia-400"></i> 連擊
+                </span>
+                <span id="comboText" class="font-digits font-black text-lg sm:text-2xl text-fuchsia-400">0</span>
+            </div>
+
+            <!-- Accuracy % -->
+            <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex flex-col justify-center">
+                <span class="text-[10px] sm:text-xs text-slate-400 mb-0.5 flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-crosshairs text-pink-400"></i> 準確度
+                </span>
+                <span id="accuracyText" class="font-digits font-black text-lg sm:text-2xl text-pink-400">100%</span>
+            </div>
+        </div>
+
+        <!-- Rhythm Canvas Track Viewport -->
+        <div id="canvasContainer" class="w-full relative h-[420px] sm:h-[480px] glass-panel rounded-2xl overflow-hidden shadow-2xl flex flex-col items-center justify-center border border-slate-700/60">
+            <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+
+            <!-- On-Screen Touch / Key Buttons for Mobile & Desktop visual feedback -->
+            <div class="absolute bottom-2 inset-x-2 grid grid-cols-4 gap-2 h-14 z-10">
+                <button id="keyBtn0" data-key="0" class="lane-key rounded-xl bg-cyan-950/80 border-2 border-cyan-400/60 text-cyan-300 font-digits font-extrabold text-xl flex flex-col items-center justify-center shadow-lg active:bg-cyan-500/40">
+                    <span>D</span>
+                </button>
+                <button id="keyBtn1" data-key="1" class="lane-key rounded-xl bg-purple-950/80 border-2 border-purple-400/60 text-purple-300 font-digits font-extrabold text-xl flex flex-col items-center justify-center shadow-lg active:bg-purple-500/40">
+                    <span>F</span>
+                </button>
+                <button id="keyBtn2" data-key="2" class="lane-key rounded-xl bg-pink-950/80 border-2 border-pink-400/60 text-pink-300 font-digits font-extrabold text-xl flex flex-col items-center justify-center shadow-lg active:bg-pink-500/40">
+                    <span>J</span>
+                </button>
+                <button id="keyBtn3" data-key="3" class="lane-key rounded-xl bg-amber-950/80 border-2 border-amber-400/60 text-amber-300 font-digits font-extrabold text-xl flex flex-col items-center justify-center shadow-lg active:bg-amber-500/40">
+                    <span>K</span>
+                </button>
+            </div>
+
+            <!-- Start Game Overlay Modal -->
+            <div id="startOverlay" class="absolute inset-0 glass-modal flex flex-col items-center justify-center p-6 text-center z-20">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 via-purple-500 to-pink-500 flex items-center justify-center text-3xl text-white mb-3 shadow-xl shadow-purple-500/30 animate-pulse">
+                    <i class="fa-solid fa-play"></i>
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-black text-white mb-2">極限節奏挑戰</h2>
+                <p class="text-slate-300 max-w-sm text-xs sm:text-sm mb-4 leading-relaxed">
+                    在 60 秒內跟隨電音節拍，當音符到達底部的打擊線時精準按下！<br>
+                    電腦按鍵：<span class="font-digits font-bold text-cyan-400">D</span> <span class="font-digits font-bold text-purple-400">F</span> <span class="font-digits font-bold text-pink-400">J</span> <span class="font-digits font-bold text-amber-400">K</span> | 手機直接點擊軌道
+                </p>
+
+                <!-- Track Selection -->
+                <div class="w-full max-w-xs mb-5 space-y-2">
+                    <label class="text-xs text-slate-400 font-bold block text-left mb-1">選擇挑戰曲目與節奏 BPM：</label>
+                    <select id="songSelect" class="w-full bg-slate-900/90 text-slate-200 border border-purple-500/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-cyan-400">
+                        <option value="cyber">Cyber Neon (128 BPM - 普通)</option>
+                        <option value="hyper">Hyperdrive Rush (150 BPM - 困難)</option>
+                        <option value="overdrive">Overdrive Max (175 BPM - 極限)</option>
+                    </select>
+                </div>
+
+                <button id="startBtn" class="px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 hover:from-cyan-400 hover:to-pink-400 text-white font-black text-lg shadow-lg shadow-purple-500/40 hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-compact-disc"></i> 開始 60 秒節奏演奏
+                </button>
+            </div>
+
+            <!-- Game Over / Results Modal -->
+            <div id="gameOverOverlay" class="absolute inset-0 glass-modal hidden flex-col items-center justify-center p-5 text-center z-30 overflow-y-auto">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-pink-500 flex items-center justify-center text-2xl text-slate-950 mb-2 shadow-lg shadow-amber-500/30">
+                    <i class="fa-solid fa-award"></i>
+                </div>
+                <h2 class="text-2xl font-black text-white mb-1">挑戰時間結束！</h2>
+                <p class="text-slate-400 text-xs mb-3">60秒演奏統計數據報告</p>
+
+                <!-- Result Card -->
+                <div class="w-full max-w-md bg-slate-900/90 rounded-2xl p-4 border border-slate-800 mb-4 text-left space-y-2 text-xs sm:text-sm">
+                    <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                        <span class="text-slate-400">演奏評級 Rank:</span>
+                        <span id="rankBadge" class="text-xl sm:text-2xl font-black text-amber-400 font-digits">RANK SSS</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">最終得分 (Score):</span>
+                        <span id="finalScore" class="text-lg font-black text-emerald-400 font-digits">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">平均準度 (Accuracy):</span>
+                        <span id="finalAccuracy" class="text-base font-bold text-pink-400 font-digits">0%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">最高連擊 (Max Combo):</span>
+                        <span id="finalCombo" class="text-base font-bold text-fuchsia-400 font-digits">0</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-slate-800/60 text-[11px] sm:text-xs">
+                        <span class="text-cyan-400 font-bold">PERFECT (精準): <span id="perfectCount" class="font-digits">0</span></span>
+                        <span class="text-purple-400 font-bold">GREAT (優秀): <span id="greatCount" class="font-digits">0</span></span>
+                        <span class="text-amber-400 font-bold">GOOD (良好): <span id="goodCount" class="font-digits">0</span></span>
+                        <span class="text-rose-500 font-bold">MISS (失誤): <span id="missCount" class="font-digits">0</span></span>
+                    </div>
+                </div>
+
+                <button id="restartBtn" class="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-base shadow-lg shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98] transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i> 再挑戰一次
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full max-w-2xl text-center py-2 text-[11px] text-slate-500">
+        Rhythm Dash 60s &copy; 2026 - HTML5 Web Audio 節奏與極限反應遊戲
+    </footer>
+
+    <script>
+        /**
+         * Web Audio Synth & Beatmap Music Engine
+         * 製作內建動態合成電子樂，無須外部音訊檔
+         */
+        class RhythmMusicEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+                this.bpm = 128;
+                this.isPlaying = false;
+                this.nextNoteTime = 0;
+                this.beatIndex = 0;
+                this.timerID = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playKick(time) {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.frequency.setValueAtTime(140, time);
+                osc.frequency.exponentialRampToValueAtTime(30, time + 0.08);
+                gain.gain.setValueAtTime(0.7, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(time);
+                osc.stop(time + 0.08);
+            }
+
+            playSnare(time) {
+                if (!this.enabled || !this.ctx) return;
+                // Noise buffer
+                const bufferSize = this.ctx.sampleRate * 0.05;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 1000;
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.4, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.08);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start(time);
+                noise.stop(time + 0.08);
+            }
+
+            playSynthNote(time, freq, duration = 0.1, type = 'sawtooth') {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, time);
+
+                gain.gain.setValueAtTime(0.15, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(time);
+                osc.stop(time + duration);
+            }
+
+            playHitSound(judgment) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                if (judgment === 'PERFECT') {
+                    this.playSynthNote(now, 880, 0.08, 'sine');
+                    this.playSynthNote(now + 0.03, 1174.66, 0.08, 'sine');
+                } else if (judgment === 'GREAT') {
+                    this.playSynthNote(now, 659.25, 0.08, 'sine');
+                } else if (judgment === 'GOOD') {
+                    this.playSynthNote(now, 440, 0.08, 'triangle');
+                } else if (judgment === 'MISS') {
+                    this.playSynthNote(now, 130, 0.12, 'sawtooth');
+                }
+            }
+
+            startMusic(bpm) {
+                this.init();
+                this.bpm = bpm;
+                this.isPlaying = true;
+                this.beatIndex = 0;
+                if (this.ctx) {
+                    this.nextNoteTime = this.ctx.currentTime + 0.05;
+                    this.scheduler();
+                }
+            }
+
+            stopMusic() {
+                this.isPlaying = false;
+                if (this.timerID) clearTimeout(this.timerID);
+            }
+
+            scheduler() {
+                if (!this.isPlaying) return;
+                const secondsPerBeat = 60.0 / this.bpm;
+                const subBeatTime = secondsPerBeat / 4; // 16th notes
+
+                while (this.nextNoteTime < this.ctx.currentTime + 0.1) {
+                    this.scheduleBeat(this.beatIndex, this.nextNoteTime);
+                    this.nextNoteTime += subBeatTime;
+                    this.beatIndex++;
+                }
+
+                this.timerID = setTimeout(() => this.scheduler(), 25);
+            }
+
+            scheduleBeat(beat, time) {
+                const subStep = beat % 16;
+                // Drums Pattern
+                if (subStep % 4 === 0) {
+                    this.playKick(time);
+                }
+                if (subStep % 8 === 4) {
+                    this.playSnare(time);
+                }
+
+                // Synth Bass / Arpeggio
+                const scale = [220, 261.63, 293.66, 329.63, 392.00, 440];
+                if (subStep % 2 === 0) {
+                    const noteFreq = scale[(beat * 3) % scale.length];
+                    this.playSynthNote(time, noteFreq, 0.08, 'sawtooth');
+                }
+            }
+        }
+
+        const audioEngine = new RhythmMusicEngine();
+
+        // Game State Config
+        const GAME_DURATION = 60.0;
+        let gameState = 'START'; // 'START', 'PLAYING', 'ENDED'
+
+        let score = 0;
+        let combo = 0;
+        let maxCombo = 0;
+        let timeLeft = GAME_DURATION;
+        let timerInterval = null;
+        let lastTimestamp = 0;
+        let songBPM = 128;
+        let highScore = parseInt(localStorage.getItem('rhythm_dash_highscore') || '0', 10);
+
+        // Judgment Metrics
+        let stats = {
+            perfect: 0,
+            great: 0,
+            good: 0,
+            miss: 0,
+            totalNotes: 0
+        };
+
+        // Canvas Setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvasContainer');
+
+        const LANES = 4;
+        const LANE_KEYS = ['d', 'f', 'j', 'k'];
+        const LANE_COLORS = ['#38bdf8', '#c084fc', '#f472b6', '#fbbf24'];
+
+        let notes = []; // Active falling notes
+        let particles = [];
+        let floaters = [];
+        let keyState = [false, false, false, false];
+
+        // Track Note Generator Timers
+        let nextNoteSpawnTime = 0;
+        let gameStartTime = 0;
+
+        class SparkParticle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.radius = Math.random() * 4 + 2;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 8 + 3;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed - 2;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.04 + 0.03;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text, color) {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.alpha = 1;
+                this.vy = -2.5;
+            }
+
+            update() {
+                this.y += this.vy;
+                this.alpha -= 0.03;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.font = '900 22px Orbitron, sans-serif';
+                ctx.fillStyle = this.color;
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = this.color;
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        function spawnSpark(x, y, color, count = 12) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new SparkParticle(x, y, color));
+            }
+        }
+
+        function addFloater(x, y, text, color) {
+            floaters.push(new FloatingText(x, y, text, color));
+        }
+
+        function resizeCanvas() {
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        function getHitLineY() {
+            return canvas.height - 70; // Target hit line position
+        }
+
+        function getLaneWidth() {
+            return canvas.width / LANES;
+        }
+
+        function spawnNotePattern(nowTime) {
+            // Generate rhythmic notes based on BPM
+            const secondsPerBeat = 60.0 / songBPM;
+            const noteSpeed = 380; // pixels per second
+
+            // Randomize lane selection based on beat rhythm
+            const availableLanes = [0, 1, 2, 3];
+            const laneIndex = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+
+            notes.push({
+                lane: laneIndex,
+                y: -30,
+                speed: noteSpeed,
+                color: LANE_COLORS[laneIndex],
+                hit: false
+            });
+
+            // Double note chance for higher difficulty BPM
+            if (songBPM >= 150 && Math.random() < 0.28) {
+                const laneIndex2 = (laneIndex + 2) % 4;
+                notes.push({
+                    lane: laneIndex2,
+                    y: -30,
+                    speed: noteSpeed,
+                    color: LANE_COLORS[laneIndex2],
+                    hit: false
+                });
+            }
+
+            // Set next note time
+            const intervalMultiplier = [0.5, 0.5, 1.0, 0.25][Math.floor(Math.random() * 4)];
+            nextNoteSpawnTime = nowTime + secondsPerBeat * intervalMultiplier * 1000;
+        }
+
+        function triggerLaneInput(laneIndex) {
+            if (gameState !== 'PLAYING') return;
+
+            const hitLineY = getHitLineY();
+            const laneWidth = getLaneWidth();
+            const laneCenterX = laneIndex * laneWidth + laneWidth / 2;
+
+            // Visual Key Feedback
+            keyState[laneIndex] = true;
+            const keyBtn = document.getElementById(`keyBtn${laneIndex}`);
+            if (keyBtn) keyBtn.classList.add('active');
+
+            setTimeout(() => {
+                keyState[laneIndex] = false;
+                if (keyBtn) keyBtn.classList.remove('active');
+            }, 100);
+
+            // Find closest active note in this lane
+            let closestNote = null;
+            let closestDist = Infinity;
+
+            for (let i = 0; i < notes.length; i++) {
+                const note = notes[i];
+                if (note.lane === laneIndex && !note.hit) {
+                    const dist = Math.abs(note.y - hitLineY);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closestNote = note;
+                    }
+                }
+            }
+
+            // Timing Judgments Thresholds
+            if (closestNote && closestDist < 85) {
+                closestNote.hit = true;
+                stats.totalNotes++;
+
+                let pts = 0;
+                let text = '';
+                let color = '';
+
+                if (closestDist <= 22) {
+                    // PERFECT
+                    pts = 300;
+                    text = 'PERFECT!';
+                    color = '#38bdf8';
+                    stats.perfect++;
+                    audioEngine.playHitSound('PERFECT');
+                } else if (closestDist <= 48) {
+                    // GREAT
+                    pts = 200;
+                    text = 'GREAT';
+                    color = '#c084fc';
+                    stats.great++;
+                    audioEngine.playHitSound('GREAT');
+                } else {
+                    // GOOD
+                    pts = 100;
+                    text = 'GOOD';
+                    color = '#fbbf24';
+                    stats.good++;
+                    audioEngine.playHitSound('GOOD');
+                }
+
+                combo++;
+                if (combo > maxCombo) maxCombo = combo;
+                score += pts + combo * 10; // Combo Bonus Score
+
+                spawnSpark(laneCenterX, hitLineY, closestNote.color, 16);
+                addFloater(laneCenterX, hitLineY - 20, text, color);
+            } else {
+                // False Hit Blank Tap (Miss penalty)
+                if (combo > 5) {
+                    addFloater(laneCenterX, hitLineY - 20, 'MISS', '#ef4444');
+                }
+            }
+
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('timerText').innerText = timeLeft.toFixed(2);
+            document.getElementById('scoreText').innerText = score;
+            document.getElementById('comboText').innerText = combo;
+
+            const totalJudged = stats.perfect + stats.great + stats.good + stats.miss;
+            const accuracy = totalJudged > 0
+                ? (((stats.perfect * 1.0 + stats.great * 0.8 + stats.good * 0.5) / totalJudged) * 100).toFixed(1)
+                : '100.0';
+            
+            document.getElementById('accuracyText').innerText = `${accuracy}%`;
+            document.getElementById('highScoreText').innerText = highScore;
+        }
+
+        function startGame() {
+            gameState = 'PLAYING';
+            score = 0;
+            combo = 0;
+            maxCombo = 0;
+            timeLeft = GAME_DURATION;
+            notes = [];
+            particles = [];
+            floaters = [];
+
+            stats = { perfect: 0, great: 0, good: 0, miss: 0, totalNotes: 0 };
+
+            // Song selection BPM
+            const songChoice = document.getElementById('songSelect').value;
+            if (songChoice === 'cyber') songBPM = 128;
+            else if (songChoice === 'hyper') songBPM = 150;
+            else if (songChoice === 'overdrive') songBPM = 175;
+
+            document.getElementById('startOverlay').classList.add('hidden');
+            document.getElementById('gameOverOverlay').classList.add('hidden');
+            document.getElementById('gameOverOverlay').classList.remove('flex');
+
+            audioEngine.startMusic(songBPM);
+
+            gameStartTime = performance.now();
+            nextNoteSpawnTime = gameStartTime + 400;
+            lastTimestamp = gameStartTime;
+
+            updateUI();
+
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (gameState !== 'PLAYING') return;
+
+                timeLeft -= 0.05;
+                if (timeLeft <= 0) {
+                    timeLeft = 0;
+                    endGame();
+                }
+                updateUI();
+            }, 50);
+        }
+
+        function endGame() {
+            gameState = 'ENDED';
+            clearInterval(timerInterval);
+            audioEngine.stopMusic();
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('rhythm_dash_highscore', highScore.toString());
+            }
+
+            const totalJudged = stats.perfect + stats.great + stats.good + stats.miss;
+            const accVal = totalJudged > 0
+                ? ((stats.perfect * 1.0 + stats.great * 0.8 + stats.good * 0.5) / totalJudged) * 100
+                : 100;
+
+            // Evaluate Rank
+            let rank = 'C';
+            let rankColor = 'text-purple-400';
+
+            if (accVal >= 98 && score >= 25000) {
+                rank = 'RANK SSS (神級之手)';
+                rankColor = 'text-cyan-300 animate-pulse';
+            } else if (accVal >= 92 && score >= 18000) {
+                rank = 'RANK SS (節奏大師)';
+                rankColor = 'text-amber-400';
+            } else if (accVal >= 85 && score >= 12000) {
+                rank = 'RANK S (專家級)';
+                rankColor = 'text-emerald-400';
+            } else if (accVal >= 75) {
+                rank = 'RANK A (熟練者)';
+                rankColor = 'text-pink-400';
+            } else if (accVal >= 60) {
+                rank = 'RANK B (新銳玩家)';
+                rankColor = 'text-blue-400';
+            }
+
+            // Display Results Modal
+            const rankElem = document.getElementById('rankBadge');
+            rankElem.innerText = rank;
+            rankElem.className = `text-lg sm:text-2xl font-black font-digits ${rankColor}`;
+
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('finalAccuracy').innerText = `${accVal.toFixed(1)}%`;
+            document.getElementById('finalCombo').innerText = maxCombo;
+
+            document.getElementById('perfectCount').innerText = stats.perfect;
+            document.getElementById('greatCount').innerText = stats.great;
+            document.getElementById('goodCount').innerText = stats.good;
+            document.getElementById('missCount').innerText = stats.miss;
+
+            document.getElementById('highScoreText').innerText = highScore;
+
+            const modal = document.getElementById('gameOverOverlay');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat) return;
+            const key = e.key.toLowerCase();
+            const idx = LANE_KEYS.indexOf(key);
+            if (idx !== -1) {
+                triggerLaneInput(idx);
+            }
+        });
+
+        // Touch / Click button handlers for mobile and screen interactions
+        [0, 1, 2, 3].forEach((idx) => {
+            const btn = document.getElementById(`keyBtn${idx}`);
+            if (btn) {
+                btn.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    triggerLaneInput(idx);
+                });
+            }
+        });
+
+        function render(now) {
+            const delta = (now - lastTimestamp) / 1000;
+            lastTimestamp = now;
+
+            // Clear Screen
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const laneW = getLaneWidth();
+            const hitY = getHitLineY();
+
+            // 1. Draw Lane Backgrounds & Divider Lines
+            for (let i = 0; i < LANES; i++) {
+                const laneX = i * laneW;
+
+                // Alternate lane shade
+                ctx.fillStyle = i % 2 === 0 ? 'rgba(15, 23, 42, 0.4)' : 'rgba(30, 41, 59, 0.3)';
+                ctx.fillRect(laneX, 0, laneW, canvas.height);
+
+                // Lane Active Glow Highlight when pressed
+                if (keyState[i]) {
+                    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                    grad.addColorStop(0, 'rgba(56, 189, 248, 0)');
+                    grad.addColorStop(1, LANE_COLORS[i] + '44');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(laneX, 0, laneW, canvas.height);
+                }
+
+                // Vertical Separator Line
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(laneX, 0);
+                ctx.lineTo(laneX, canvas.height);
+                ctx.stroke();
+            }
+
+            // 2. Draw Hit Bar Target Line
+            ctx.save();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 4;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#38bdf8';
+            ctx.beginPath();
+            ctx.moveTo(0, hitY);
+            ctx.lineTo(canvas.width, hitY);
+            ctx.stroke();
+            ctx.restore();
+
+            // Hit Zone Target Circles
+            for (let i = 0; i < LANES; i++) {
+                const cx = i * laneW + laneW / 2;
+                ctx.beginPath();
+                ctx.arc(cx, hitY, 18, 0, Math.PI * 2);
+                ctx.strokeStyle = LANE_COLORS[i];
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+
+            // 3. Gameplay Active State logic
+            if (gameState === 'PLAYING') {
+                // Spawn new notes timed with music
+                if (now >= nextNoteSpawnTime) {
+                    spawnNotePattern(now);
+                }
+
+                // Update & Render Falling Notes
+                for (let i = notes.length - 1; i >= 0; i--) {
+                    const note = notes[i];
+                    note.y += note.speed * delta;
+
+                    const noteX = note.lane * laneW + laneW * 0.15;
+                    const noteWidth = laneW * 0.7;
+                    const noteHeight = 22;
+
+                    if (!note.hit) {
+                        // Draw Glowing Note Bar
+                        ctx.save();
+                        ctx.fillStyle = note.color;
+                        ctx.shadowBlur = 12;
+                        ctx.shadowColor = note.color;
+                        
+                        // Rounded rectangle for note
+                        ctx.beginPath();
+                        ctx.roundRect(noteX, note.y, noteWidth, noteHeight, 10);
+                        ctx.fill();
+
+                        // Inner light stripe
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.roundRect(noteX + 6, note.y + 6, noteWidth - 12, noteHeight - 12, 6);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+
+                    // Check for Missed Notes (Fell below hit line)
+                    if (!note.hit && note.y > hitY + 50) {
+                        note.hit = true;
+                        combo = 0;
+                        stats.miss++;
+                        stats.totalNotes++;
+                        audioEngine.playHitSound('MISS');
+                        addFloater(note.lane * laneW + laneW / 2, hitY - 20, 'MISS', '#ef4444');
+                        updateUI();
+                    }
+
+                    // Remove inactive notes
+                    if (note.y > canvas.height + 40 || note.hit) {
+                        notes.splice(i, 1);
+                    }
+                }
+            }
+
+            // 4. Particles Update & Draw
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update();
+                p.draw(ctx);
+                if (p.alpha <= 0) particles.splice(i, 1);
+            }
+
+            // 5. Floating Text Float Update & Draw
+            for (let i = floaters.length - 1; i >= 0; i--) {
+                const ft = floaters[i];
+                ft.update();
+                ft.draw(ctx);
+                if (ft.alpha <= 0) floaters.splice(i, 1);
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+
+        const soundToggleBtn = document.getElementById('soundToggleBtn');
+        const soundIcon = document.getElementById('soundIcon');
+        const soundLabel = document.getElementById('soundLabel');
+
+        soundToggleBtn.addEventListener('click', () => {
+            audioEngine.enabled = !audioEngine.enabled;
+            if (audioEngine.enabled) {
+                soundIcon.className = 'fa-solid fa-volume-high text-cyan-400';
+                soundLabel.innerText = '音樂：開啟';
+            } else {
+                soundIcon.className = 'fa-solid fa-volume-xmark text-slate-500';
+                soundLabel.innerText = '音樂：關閉';
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+
+        window.onload = () => {
+            resizeCanvas();
+            document.getElementById('highScoreText').innerText = highScore;
+            requestAnimationFrame((ts) => {
+                lastTimestamp = ts;
+                render(ts);
+            });
+        };
+    </script>
+</body>
+</html>
